@@ -58,7 +58,7 @@ jobs:
       # See if the cache entry already exists to avoid downloading it
       # and doing the cache write again.
       - id: check-cache
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: gomodcache # relative to workspace; see env note at top of file
           key: ${{ steps.hash.outputs.key }}
@@ -93,7 +93,7 @@ jobs:
       with:
         path: src
     - name: Restore Go module cache
-      uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: gomodcache
         key: ${{ needs.gomod-cache.outputs.cache-key }}
@@ -131,14 +131,14 @@ jobs:
       with:
         path: src
     - name: Restore Go module cache
-      uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: gomodcache
         key: ${{ needs.gomod-cache.outputs.cache-key }}
         enableCrossOsArchive: true
     - name: Restore Cache
       id: restore-cache
-      uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         # Note: this is only restoring the build cache. Mod cache is shared amongst
         # all jobs in the workflow.
@@ -245,7 +245,7 @@ jobs:
         path: ${{ github.workspace }}/src
 
     - name: Restore Go module cache
-      uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: gomodcache
         key: ${{ needs.gomod-cache.outputs.cache-key }}
@@ -293,14 +293,14 @@ jobs:
       with:
         path: src
     - name: Restore Go module cache
-      uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: gomodcache
         key: ${{ needs.gomod-cache.outputs.cache-key }}
         enableCrossOsArchive: true
     - name: Restore Cache
       id: restore-cache
-      uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ~/Library/Caches/go-build
         key: ${{ runner.os }}-go-test-${{ hashFiles('**/go.sum') }}-${{ github.job }}-${{ github.run_id }}
@@ -353,7 +353,7 @@ jobs:
       with:
         path: src
     - name: Restore Go module cache
-      uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: gomodcache
         key: ${{ needs.gomod-cache.outputs.cache-key }}
@@ -408,14 +408,14 @@ jobs:
       with:
         path: src
     - name: Restore Go module cache
-      uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: gomodcache
         key: ${{ needs.gomod-cache.outputs.cache-key }}
         enableCrossOsArchive: true
     - name: Restore Cache
       id: restore-cache
-      uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         # Note: this is only restoring the build cache. Mod cache is shared amongst
         # all jobs in the workflow.
@@ -469,7 +469,7 @@ jobs:
       with:
         path: src
     - name: Restore Go module cache
-      uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: gomodcache
         key: ${{ needs.gomod-cache.outputs.cache-key }}
@@ -507,14 +507,14 @@ jobs:
       with:
         path: src
     - name: Restore Go module cache
-      uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: gomodcache
         key: ${{ needs.gomod-cache.outputs.cache-key }}
         enableCrossOsArchive: true
     - name: Restore Cache
       id: restore-cache
-      uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         # Note: this is only restoring the build cache. Mod cache is shared amongst
         # all jobs in the workflow.
@@ -567,7 +567,7 @@ jobs:
       # some Android breakages early.
       # TODO(bradfitz): better; see https://github.com/tailscale/tailscale/issues/4482
     - name: Restore Go module cache
-      uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: gomodcache
         key: ${{ needs.gomod-cache.outputs.cache-key }}
@@ -588,14 +588,14 @@ jobs:
       with:
         path: src
     - name: Restore Go module cache
-      uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: gomodcache
         key: ${{ needs.gomod-cache.outputs.cache-key }}
         enableCrossOsArchive: true
     - name: Restore Cache
       id: restore-cache
-      uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         # Note: this is only restoring the build cache. Mod cache is shared amongst
         # all jobs in the workflow.
@@ -653,7 +653,7 @@ jobs:
     - name: Set GOMODCACHE env
       run: echo "GOMODCACHE=$HOME/.cache/go-mod" >> $GITHUB_ENV
     - name: Restore Go module cache
-      uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: gomodcache
         key: ${{ needs.gomod-cache.outputs.cache-key }}
@@ -740,7 +740,7 @@ jobs:
     - name: Set GOMODCACHE env
       run: echo "GOMODCACHE=$HOME/.cache/go-mod" >> $GITHUB_ENV
     - name: Restore Go module cache
-      uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: gomodcache
         key: ${{ needs.gomod-cache.outputs.cache-key }}
@@ -758,7 +758,7 @@ jobs:
       with:
         path: src
     - name: Restore Go module cache
-      uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: gomodcache
         key: ${{ needs.gomod-cache.outputs.cache-key }}
@@ -790,7 +790,7 @@ jobs:
       with:
         path: src
     - name: Restore Go module cache
-      uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: gomodcache
         key: ${{ needs.gomod-cache.outputs.cache-key }}
@@ -812,7 +812,7 @@ jobs:
       with:
         path: src
     - name: Restore Go module cache
-      uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: gomodcache
         key: ${{ needs.gomod-cache.outputs.cache-key }}
@@ -866,7 +866,7 @@ jobs:
       with:
         path: src
     - name: Restore Go module cache
-      uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: gomodcache
         key: ${{ needs.gomod-cache.outputs.cache-key }}
