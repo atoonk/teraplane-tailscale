@@ -762,6 +762,25 @@ func (e *userspaceEngine) SetPeerByIPPacketFunc(fn func(netip.Addr) (_ key.NodeP
 	})
 }
 
+// SetWGKeypairFunc installs an observer of transport-keypair lifecycle events on
+// the underlying wireguard-go device, so a caller that terminates the tunnel in
+// its own forwarding plane can maintain an index->keypair table and do the
+// symmetric crypto inline. The engine keeps the whole control plane; only the
+// per-packet transport crypto moves.
+//
+// TERAPLANE FORK ADDITION. See device.SetKeypairFunc and
+// go-vpp-poc/docs/DESIGN-INLINE-WG-CRYPTO.md.
+func (e *userspaceEngine) SetWGKeypairFunc(fn func(*device.Device, *device.Keypair, device.KeypairEvent)) {
+	if fn == nil {
+		e.wgdev.SetKeypairFunc(nil)
+		return
+	}
+	dev := e.wgdev
+	dev.SetKeypairFunc(func(_ device.NoisePublicKey, kp *device.Keypair, ev device.KeypairEvent) {
+		fn(dev, kp, ev)
+	})
+}
+
 func (e *userspaceEngine) SetPeerSessionStateFunc(fn func(key.NodePublic, PeerWireGuardState)) {
 	e.wgdev.SetSessionStateFunc(func(pk device.NoisePublicKey, state device.PeerSessionState) {
 		if fn != nil {
