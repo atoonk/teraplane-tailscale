@@ -308,6 +308,13 @@ type Server struct {
 	// This field must be set before calling Start.
 	Tun tun.Device
 
+	// PacketListener, if non-nil, supplies the UDP transport for the encrypted
+	// traffic to and from peers, instead of a kernel socket. Set it together
+	// with Tun to keep the whole datapath out of the kernel; it must be set
+	// before calling Start. nil = the ordinary kernel socket.
+	// (Teraplane patch.)
+	PacketListener nettype.PacketListener
+
 	initOnce            sync.Once
 	initErr             error
 	lb                  *ipnlocal.LocalBackend
@@ -846,7 +853,7 @@ func (s *Server) start() (reterr error) {
 
 	s.dialer = &tsdial.Dialer{Logf: tsLogf} // mutated below (before used)
 	s.dialer.SetBus(sys.Bus.Get())
-	eng, err := wgengine.NewUserspaceEngine(tsLogf, wgengine.Config{
+	engineConf := wgengine.Config{
 		Tun:           s.Tun,
 		EventBus:      sys.Bus.Get(),
 		ListenPort:    s.Port,
@@ -857,7 +864,9 @@ func (s *Server) start() (reterr error) {
 		HealthTracker: sys.HealthTracker.Get(),
 		ExtraRootCAs:  sys.ExtraRootCAs,
 		Metrics:       sys.UserMetricsRegistry(),
-	})
+	}
+	engineConf.PacketListener = s.PacketListener // Teraplane patch: outer transport
+	eng, err := wgengine.NewUserspaceEngine(tsLogf, engineConf)
 	if err != nil {
 		return err
 	}

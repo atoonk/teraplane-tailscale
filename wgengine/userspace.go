@@ -46,6 +46,7 @@ import (
 	"tailscale.com/types/ipproto"
 	"tailscale.com/types/key"
 	"tailscale.com/types/logger"
+	"tailscale.com/types/nettype"
 	"tailscale.com/types/views"
 	"tailscale.com/util/checkchange"
 	"tailscale.com/util/clientmetric"
@@ -248,6 +249,13 @@ type Config struct {
 	// become required non-nil.
 	EventBus *eventbus.Bus
 
+	// PacketListener optionally supplies the UDP transport magicsock uses for
+	// the encrypted traffic to and from peers; it must be set before the
+	// engine is created. nil = the ordinary kernel socket. A userspace
+	// dataplane sets this so the ciphertext never enters the kernel network
+	// stack. (Teraplane patch.)
+	PacketListener nettype.PacketListener
+
 	// ForceDiscoKey, if non-zero, forces the use of a specific disco
 	// private key. This should only be used for special cases and
 	// experiments, not for production. The recommended normal path is to
@@ -437,6 +445,10 @@ func NewUserspaceEngine(logf logger.Logf, conf Config) (_ Engine, reterr error) 
 		ForceDiscoKey:  conf.ForceDiscoKey,
 		OnDERPRecv:     conf.OnDERPRecv,
 	}
+	// Teraplane patch: carry the outer transport on the caller's listener when
+	// one is supplied. Riding the upstream TEST hook is deliberate fork
+	// minimalism; an upstream PR would propose a supported field instead.
+	magicsockOpts.TestOnlyPacketListener = conf.PacketListener
 	var err error
 	e.magicConn, err = magicsock.NewConn(magicsockOpts)
 	if err != nil {
