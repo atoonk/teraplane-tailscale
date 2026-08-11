@@ -626,6 +626,13 @@ func TryUpgradeToConn(pconn nettype.PacketConn, network string, batchSize int, r
 		// upgrades are available.
 		return pconn
 	}
+	if bc, ok := pconn.(Conn); ok {
+		// Teraplane patch: the conn is already batch-capable (Teraplane's
+		// userspace-dataplane transport implements Conn natively). Without
+		// this, only *net.UDPConn upgrades and a custom transport is forced
+		// through single-datagram reads and writes. See FORK.md.
+		return bc
+	}
 	uc, ok := pconn.(*net.UDPConn)
 	if !ok {
 		return pconn
