@@ -142,8 +142,8 @@ github.com/ashanbrown/forbidigo v1.6.0 h1:D3aewfM37Yb3pxHujIPSpTf6oQk9sc9WZi8ger
 github.com/ashanbrown/forbidigo v1.6.0/go.mod h1:Y8j9jy9ZYAEHXdu723cUlraTqbzjKF1MUyfOKL+AjcU=
 github.com/ashanbrown/makezero v1.1.1 h1:iCQ87C0V0vSyO+M9E/FZYbu65auqH0lnsOkf5FcB28s=
 github.com/ashanbrown/makezero v1.1.1/go.mod h1:i1bJLCRSCHOcOa9Y6MyF2FTfMZMFdHvxKHxgO5Z1axI=
-github.com/atoonk/teraplane-wireguard-go v0.0.0-20260801051955-cfc88e57d13a h1:9vDdQ5+No+RzufKEOhj7hTMJv0zXvvpCcfmvk2bZj+o=
-github.com/atoonk/teraplane-wireguard-go v0.0.0-20260801051955-cfc88e57d13a/go.mod h1:6SerzcvHWQchKO2BfNdmquA77CHSECZuFl+D9fp4RnI=
+github.com/atoonk/teraplane-wireguard-go v0.0.0-20260811003717-1c2908d8e013 h1:UOxcIEB88m+JrRERj6gD81rhUuXjHLANwB5pmDLYmnI=
+github.com/atoonk/teraplane-wireguard-go v0.0.0-20260811003717-1c2908d8e013/go.mod h1:6SerzcvHWQchKO2BfNdmquA77CHSECZuFl+D9fp4RnI=
 github.com/atotto/clipboard v0.1.4 h1:EH0zSVneZPSuFR11BlR9YppQTVDbh5+16AmcJi4g1z4=
 github.com/atotto/clipboard v0.1.4/go.mod h1:ZY9tmq7sm5xIbd9bOK4onWV4S6X0u6GY7Vn0Yu86PYI=
 github.com/aws/aws-sdk-go-v2 v1.42.1 h1:9eOTgu1z/dVtYpNZ3/8/XbbaX0x/BqE3HUzAzs6K0ek=
