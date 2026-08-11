@@ -1731,8 +1731,8 @@ func (c *Conn) putReceiveBatch(batch *receiveBatch) {
 	c.receiveBatchPool.Put(batch)
 }
 
-func (c *Conn) receiveIPv4() conn.ReceiveFunc {
-	return c.mkReceiveFunc(&c.pconn4, c.health.ReceiveFuncStats(health.ReceiveIPv4),
+func (c *Conn) receiveIPv4(shard int) conn.ReceiveFunc {
+	return c.mkReceiveFunc(&c.pconn4, shard, c.shardHealth(health.ReceiveIPv4, shard),
 		&c.metrics.inboundPacketsIPv4Total,
 		&c.metrics.inboundPacketsPeerRelayIPv4Total,
 		&c.metrics.inboundBytesIPv4Total,
@@ -1741,8 +1741,8 @@ func (c *Conn) receiveIPv4() conn.ReceiveFunc {
 }
 
 // receiveIPv6 creates an IPv6 ReceiveFunc reading from c.pconn6.
-func (c *Conn) receiveIPv6() conn.ReceiveFunc {
-	return c.mkReceiveFunc(&c.pconn6, c.health.ReceiveFuncStats(health.ReceiveIPv6),
+func (c *Conn) receiveIPv6(shard int) conn.ReceiveFunc {
+	return c.mkReceiveFunc(&c.pconn6, shard, c.shardHealth(health.ReceiveIPv6, shard),
 		&c.metrics.inboundPacketsIPv6Total,
 		&c.metrics.inboundPacketsPeerRelayIPv6Total,
 		&c.metrics.inboundBytesIPv6Total,
@@ -1752,7 +1752,19 @@ func (c *Conn) receiveIPv6() conn.ReceiveFunc {
 
 // mkReceiveFunc creates a ReceiveFunc reading from ruc.
 // The provided healthItem and metrics are updated if non-nil.
-func (c *Conn) mkReceiveFunc(ruc *RebindingUDPConn, healthItem *health.ReceiveFuncStats, directPacketMetric, peerRelayPacketMetric, directBytesMetric, peerRelayBytesMetric *expvar.Int) conn.ReceiveFunc {
+// shardHealth returns the health item for a shard's receive func. Only shard 0
+// reports: a health.ReceiveFuncStats is a single Enter/Exit slot, so several
+// goroutines sharing one would corrupt each other's liveness state. Shard 0 is
+// enough to detect a wedged receive path, which is what the item is for.
+// TERAPLANE FORK ADDITION.
+func (c *Conn) shardHealth(kind health.ReceiveFunc, shard int) *health.ReceiveFuncStats {
+	if shard != 0 {
+		return nil
+	}
+	return c.health.ReceiveFuncStats(kind)
+}
+
+func (c *Conn) mkReceiveFunc(ruc *RebindingUDPConn, shard int, healthItem *health.ReceiveFuncStats, directPacketMetric, peerRelayPacketMetric, directBytesMetric, peerRelayBytesMetric *expvar.Int) conn.ReceiveFunc {
 	// epCache caches an epAddr->endpoint for hot flows.
 	var epCache epAddrEndpointCache
 
@@ -1773,7 +1785,7 @@ func (c *Conn) mkReceiveFunc(ruc *RebindingUDPConn, healthItem *health.ReceiveFu
 		batch := c.getReceiveBatchForBuffs(buffs)
 		defer c.putReceiveBatch(batch)
 		for {
-			numMsgs, err := ruc.ReadBatch(batch.msgs[:len(buffs)], 0)
+			numMsgs, err := ruc.ReadBatchShard(shard, batch.msgs[:len(buffs)], 0)
 			if err != nil {
 				if neterror.PacketWasTruncated(err) {
 					continue
@@ -3499,7 +3511,19 @@ func (c *connBind) Open(ignoredPort uint16) ([]conn.ReceiveFunc, uint16, error) 
 		return nil, 0, errors.New("magicsock: connBind already open")
 	}
 	c.closed = false
-	fns := []conn.ReceiveFunc{c.receiveIPv4(), c.receiveIPv6(), c.receiveDERP}
+	// One receive func per shard per family: wireguard-go starts a goroutine
+	// for each, so a sharded transport gets that many parallel readers instead
+	// of the single one every peer used to funnel through. An unsharded pconn
+	// reports one shard, which reproduces the original list exactly.
+	// TERAPLANE FORK: shard loops.
+	fns := make([]conn.ReceiveFunc, 0, 8)
+	for i := 0; i < c.pconn4.RxShards(); i++ {
+		fns = append(fns, c.receiveIPv4(i))
+	}
+	for i := 0; i < c.pconn6.RxShards(); i++ {
+		fns = append(fns, c.receiveIPv6(i))
+	}
+	fns = append(fns, c.receiveDERP)
 	if runtime.GOOS == "js" {
 		fns = []conn.ReceiveFunc{c.receiveDERP}
 	}

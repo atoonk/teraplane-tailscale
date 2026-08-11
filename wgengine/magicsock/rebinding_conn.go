@@ -140,6 +140,38 @@ func (c *RebindingUDPConn) ReadBatch(msgs []ipv6.Message, flags int) (int, error
 	}
 }
 
+// RxShards reports how many receive shards the current pconn has, or 1 when it
+// is not a [batching.ShardedConn]. TERAPLANE FORK ADDITION; see ShardedConn.
+func (c *RebindingUDPConn) RxShards() int {
+	pconn := *c.pconnAtomic.Load()
+	if s, ok := pconn.(batching.ShardedConn); ok {
+		if n := s.RxShards(); n > 1 {
+			return n
+		}
+	}
+	return 1
+}
+
+// ReadBatchShard is [RebindingUDPConn.ReadBatch] restricted to one shard,
+// falling back to a whole-conn read when the pconn is not sharded. A rebind can
+// swap a sharded pconn for an unsharded one under a reader; that reader then
+// drains the whole conn, which is correct but means the other shards' readers
+// have nothing to do until the next rebind. TERAPLANE FORK ADDITION.
+func (c *RebindingUDPConn) ReadBatchShard(shard int, msgs []ipv6.Message, flags int) (int, error) {
+	for {
+		pconn := *c.pconnAtomic.Load()
+		s, ok := pconn.(batching.ShardedConn)
+		if !ok || shard >= s.RxShards() {
+			return c.ReadBatch(msgs, flags)
+		}
+		n, err := s.ReadBatchShard(shard, msgs, flags)
+		if err != nil && pconn != c.currentConn() {
+			continue
+		}
+		return n, err
+	}
+}
+
 func (c *RebindingUDPConn) Port() uint16 {
 	c.mu.Lock()
 	defer c.mu.Unlock()

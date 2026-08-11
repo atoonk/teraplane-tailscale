@@ -55,3 +55,31 @@ type Conn interface {
 	// was disabled as a result of a send error.
 	WriteBatchTo(buffs [][]byte, addr netip.AddrPort, geneve packet.GeneveHeader, offset int) error
 }
+
+// ShardedConn is a [Conn] whose receive queue is split into independent shards,
+// so more than one goroutine can drain it.
+//
+// TERAPLANE FORK ADDITION. wireguard-go runs exactly one goroutine per
+// conn.ReceiveFunc, and magicsock supplies one func per address family, so all
+// inbound traffic for every peer funnels through a single goroutine. For a
+// kernel UDP socket that is fine (the kernel does the queueing), but for a
+// transport that hands packets over in userspace it is the throughput ceiling
+// of the whole tunnel: measured on a 100G subnet router with 100 peers, 58.8%
+// of all inbound datagrams were dropped on a full handoff queue while most
+// cores sat idle.
+//
+// A Conn that implements ShardedConn gets one ReceiveFunc per shard, and
+// therefore one wireguard-go receive goroutine per shard. Implementations must
+// map a datagram to a shard by its SOURCE address so that a given peer's
+// packets always land in the same shard: sharding must not reorder a peer's
+// flow, which would spend WireGuard's replay window rather than buy anything.
+type ShardedConn interface {
+	Conn
+	// RxShards reports the number of shards, which is fixed for the Conn's
+	// lifetime and must be >= 1.
+	RxShards() int
+	// ReadBatchShard is [Conn.ReadBatch] restricted to one shard. The caller
+	// runs at most one goroutine per shard, so an implementation may assume a
+	// single reader per shard.
+	ReadBatchShard(shard int, msgs []ipv6.Message, flags int) (n int, err error)
+}
