@@ -108,6 +108,38 @@ marked shared BEFORE they are reachable by the receive path, and replay
 validation serializes on a per-keypair mutex from then on. This patch is
 plumbing only; it holds no key material and adds no crypto.
 
+## Patch 5: shed bulk DERP traffic before it is cloned, never handshakes
+
+Files: `wgengine/magicsock/magicsock.go` (`sendAddr`),
+`wgengine/magicsock/teraplane_derpshed_test.go`.
+
+When a peer's direct path lapses while a dataplane is forwarding at millions
+of packets per second, all of that traffic is redirected at the relay. The
+relay's write channel fills instantly, and upstream then allocates a copy of
+every packet (`bytes.Clone`) only to drop it moments later. At dataplane
+rates those doomed copies are a garbage-collection storm measured wedging the
+very send loops that must stay live for the direct path to recover: a
+total forwarding collapse (15k pps delivered out of 11.6M offered), and a
+measured 20% delivered-rate loss near the router's capacity even with
+path-recovery working.
+
+The patch drops a bulk packet BEFORE the copy when the relay channel is
+already full. The outcome for that packet is identical to upstream (it was
+about to be dropped); only the allocation is avoided.
+
+The guard is on the WireGuard message TYPE, deliberately not on packet size:
+only transport (data) messages are ever shed. Handshake initiations,
+responses, and cookie replies always get through, because they are exactly
+what a relay-only peer needs to rekey and recover; bulk data at these rates
+is often SMALL (a 20-byte inner packet is an ~88-byte datagram), so a size
+threshold would exempt precisely the traffic the shed exists for -- that
+variant measured a 20% regression and is why the type check is load-bearing.
+Pinned by `TestDerpShedNeverDropsWireGuardHandshakes`. Setting
+`TS_DEBUG_DERP_KEEP_BULK=1` restores upstream behavior.
+
+This is the fork's only relay-path change; it does not otherwise alter DERP
+behavior, ordering, or delivery.
+
 ## Maintenance
 
 - Consumed by go-vpp-poc as the published module
@@ -121,5 +153,6 @@ plumbing only; it holds no key material and adds no crypto.
 - Upgrade policy: rebase this branch onto each upstream release the
   integration tracks (never merge), re-run go-vpp-poc's tsconn/engine tests
   and the hardware benchmark, then re-export the patch files.
-- Every changed line carries a `Teraplane patch` comment, so
-  `grep -rn "Teraplane patch"` enumerates the fork's full code surface.
+- Every patch site carries a `TERAPLANE FORK` or `Teraplane patch` comment,
+  so `grep -rniE "teraplane (patch|fork)"` enumerates the fork's full code
+  surface.
