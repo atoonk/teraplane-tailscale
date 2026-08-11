@@ -531,4 +531,4 @@ require (
 
 tool github.com/stacklok/frizbee
 
-replace github.com/tailscale/wireguard-go => github.com/atoonk/teraplane-wireguard-go v0.0.0-20260801002526-f3f15726ebee
+replace github.com/tailscale/wireguard-go => github.com/atoonk/teraplane-wireguard-go v0.0.0-20260801051955-cfc88e57d13a

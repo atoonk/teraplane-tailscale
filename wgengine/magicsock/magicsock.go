@@ -1777,6 +1777,15 @@ func (c *Conn) mkReceiveFunc(ruc *RebindingUDPConn, shard int, healthItem *healt
 					c.logf("Receive func %s exiting with error: %T, %v", healthItem.Name(), retErr, retErr)
 				}
 			}()
+		} else if shard != 0 {
+			// TERAPLANE FORK: shards past 0 have no health item (see
+			// shardHealth), but a shard that dies must still say so: an
+			// unlogged exit quietly costs 1/Nth of receive capacity.
+			defer func() {
+				if retErr != nil && !c.closing.Load() {
+					c.logf("magicsock: receive shard %d exiting with error: %T, %v", shard, retErr, retErr)
+				}
+			}()
 		}
 		if ruc == nil {
 			panic("nil RebindingUDPConn")

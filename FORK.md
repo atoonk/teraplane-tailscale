@@ -1,8 +1,8 @@
 # Why this fork exists
 
-This is upstream tailscale.com at commit `cd34d441b` (v1.103.0-pre) plus
-exactly two patches, 30 changed lines across 3 files, on branch `teraplane`.
-It exists for one reason: **Teraplane** (a userspace Go forwarding plane,
+This is upstream tailscale.com at commit `cd34d441b` (v1.103.0-pre) plus a
+small patch series (~150 changed lines across 9 files, enumerated below), on
+branch `teraplane`. It exists for one reason: **Teraplane** (a userspace Go forwarding plane,
 github.com/atoonk/go-vpp-poc) terminates Tailscale entirely inside its own
 dataplane, and upstream exposes a seam for only half of that.
 
@@ -73,12 +73,51 @@ batches), mirror it in `conn_default.go` so non-Linux behaves the same,
 document that `batchSize` is advisory for an already-batching conn, and add a
 passthrough test.
 
+## Patch 3: one receive goroutine per transport shard
+
+Files: `wgengine/magicsock/magicsock.go`, `wgengine/magicsock/rebinding_conn.go`
+(+ test).
+
+Upstream drains each family's UDP socket with ONE `ReceiveFunc` goroutine,
+which is a single-core ceiling on a many-core box: measured on a 48-core
+router, 21.6M of 30.4M offered packets per second were dropped while the box
+sat mostly idle. If the underlying conn reports `RxShards() > 1` (Teraplane's
+dataplane transport does; a kernel socket reports 1, keeping upstream
+behavior), `connBind.Open` starts one receive goroutine per shard, each
+reading its own queue via `ReadBatchShard`.
+
+Notes an upstream submission would need: only shard 0 carries the
+`health.ReceiveFuncStats` item (the stats type is a single Enter/Exit slot,
+so shards sharing one would corrupt liveness state); shards past 0 therefore
+get their own exit-error log line so a dying shard is never silent. After a
+rebind to a non-sharded conn, all shard goroutines fall through to the plain
+`ReadBatch`, which serializes on the conn's read mutex: correct, just no
+longer parallel.
+
+## Patch 4: `SetWGKeypairFunc`, observing transport keypairs
+
+Files: `wgengine/userspace.go` (plumbing to wireguard-go's
+`device.SetKeypairFunc`).
+
+The seam that makes an external inline-decrypt fast path possible: the
+embedder is told when a transport keypair is established, promoted, or
+retired, and receives the `*device.Keypair` so it can maintain its own
+index->keypair table. All safety obligations live in the wireguard-go fork
+(github.com/atoonk/teraplane-wireguard-go): keypairs handed to an observer are
+marked shared BEFORE they are reachable by the receive path, and replay
+validation serializes on a per-keypair mutex from then on. This patch is
+plumbing only; it holds no key material and adds no crypto.
+
 ## Maintenance
 
-- Consumed by go-vpp-poc via a `go.mod` replace. The patches are also carried
-  inside that repo (`third_party/tailscale-patches/`, format-patch form), so
-  this fork is reproducible from any clean upstream checkout:
+- Consumed by go-vpp-poc as the published module
+  `github.com/atoonk/teraplane-tailscale` (branch `teraplane`), pinned by
+  pseudo-version. The patches are also carried inside that repo
+  (`third_party/tailscale-patches/`, format-patch form), so this fork is
+  reproducible from any clean upstream checkout:
   `git checkout cd34d441b && git am third_party/tailscale-patches/*.patch`.
+  The patch record must be re-exported from this branch's HEAD after every
+  change here; an out-of-date record silently rebuilds an older fork.
 - Upgrade policy: rebase this branch onto each upstream release the
   integration tracks (never merge), re-run go-vpp-poc's tsconn/engine tests
   and the hardware benchmark, then re-export the patch files.
