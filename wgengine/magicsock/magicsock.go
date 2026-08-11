@@ -1669,6 +1669,22 @@ func (c *Conn) sendUDPStd(addr netip.AddrPort, b []byte) (sent bool, err error) 
 // An example of when they might be different: sending to an
 // IPv6 address when the local machine doesn't have IPv6 support
 // returns (false, nil); it's not an error, but nothing was sent.
+// derpKeepBulk (TS_DEBUG_DERP_KEEP_BULK=1) restores upstream behaviour of
+// cloning bulk packets even for a full relay channel; kill switch for the
+// shed below. TERAPLANE FORK ADDITION.
+var derpKeepBulk = sync.OnceValue(func() bool { return envknob.Bool("TS_DEBUG_DERP_KEEP_BULK") })
+
+// isWireGuardTransport reports whether b is a WireGuard TRANSPORT (data)
+// message, as opposed to a handshake initiation/response or cookie reply. b is
+// the datagram the bind hands sendAddr, which begins at the message type
+// (the encapsulating free space has already been stripped, endpoint.go). Only
+// transport messages are eligible for the DERP bulk shed; handshakes must
+// always get through so a DERP-only peer can rekey. See sendAddr and
+// TestDerpShedNeverDropsWireGuardHandshakes. TERAPLANE FORK ADDITION.
+func isWireGuardTransport(b []byte) bool {
+	return len(b) >= 4 && binary.LittleEndian.Uint32(b[:4]) == device.MessageTransportType
+}
+
 func (c *Conn) sendAddr(addr netip.AddrPort, pubKey key.NodePublic, b []byte, isDisco bool, isGeneveEncap bool) (sent bool, err error) {
 	if addr.Addr() != tailcfg.DerpMagicIPAddr {
 		return c.sendUDP(addr, b, isDisco, isGeneveEncap)
@@ -1678,6 +1694,38 @@ func (c *Conn) sendAddr(addr netip.AddrPort, pubKey key.NodePublic, b []byte, is
 	ch := c.derpWriteChanForRegion(regionID, pubKey)
 	if ch == nil {
 		metricSendDERPErrorChan.Add(1)
+		return false, nil
+	}
+
+	// TERAPLANE FORK ADDITION (FORK.md Patch 5).
+	//
+	// Bulk data bound for a relay whose write channel is already full is
+	// going to be dropped by the select below anyway -- but only after
+	// bytes.Clone has allocated for it. Under overload (a dataplane pushing
+	// hundreds of thousands of pps at a lapsed-trust peer) those clones are
+	// a >100MB/s garbage storm whose GC assists wedge the very send loops
+	// that must stay live for disco to recover the direct path: measured as
+	// a total forwarding collapse (15k pps out of 11.6M offered) with every
+	// worker parked in mallocgc under sendAddr. Shed bulk BEFORE the clone;
+	// disco keeps the clone and the drop-oldest retry semantics below, which
+	// is exactly the priority the recovery loop needs. DERP is a lossy
+	// transport; dropping bulk here is indistinguishable from dropping it
+	// two lines later, minus the allocation.
+	//
+	// The type guard is load-bearing: everything arriving via the wireguard-go
+	// bind has isDisco==false, INCLUDING WireGuard HANDSHAKE traffic (initiation,
+	// response, cookie reply). Those are exactly what a lapsed-trust peer needs
+	// to rekey and recover the direct path, and a saturated region channel is
+	// precisely when it is trying to; shedding them would push a DERP-only peer
+	// toward RejectAfterTime under sustained flood, a liveness regression an
+	// attacker could drive. So shed only TRANSPORT (data) messages, never a
+	// handshake -- keyed on the message TYPE, not size, because bulk data at
+	// this rate is often SMALL (a 20B inner packet is an ~88B datagram) and it
+	// is precisely that small-but-high-rate data whose per-packet bytes.Clone is
+	// the GC storm this shed exists to stop. Pinned by
+	// TestDerpShedNeverDropsWireGuardHandshakes.
+	if !isDisco && isWireGuardTransport(b) && len(ch) == cap(ch) && !derpKeepBulk() {
+		metricSendDERPDropped.Add(1)
 		return false, nil
 	}
 
